@@ -33,7 +33,7 @@
     self = [super init];
     if (self) {
         self.shapes = shapes;
-        self.vertexCatchTolerance = 0.1;
+        self.vertexCatchTolerance = 0.2;
         self.slopTolerance = 1.1;
     }
     return self;
@@ -55,7 +55,8 @@
     for (TLMShape *shape in self.shapes) {
         // First two points implicitly match.
         NSMutableArray *matchedPoints =
-            [NSMutableArray arrayWithObjects:@(0), @(1), nil];
+        [NSMutableArray arrayWithObjects:@{@"index":@(0), @"distance":@(0)},
+                                         @{@"index":@(1), @"distance":@(0)}, nil];
         [self.matchedPoints setObject:matchedPoints forKey:shape.name];
     }
     
@@ -107,10 +108,12 @@
             
             // See if we are close enough to match the point.
             CGFloat absDist = self.vertexCatchTolerance * self.initialSegmentLength;
-            if (CGPointDistance([[self.points lastObject] CGPointValue],
-                                nextPoint) <= absDist) {
+            CGFloat pDist =
+                CGPointDistance([[self.points lastObject] CGPointValue], nextPoint);
+            if (pDist <= absDist) {
                 // Save the path index of the point that matches.
-                [matchedPoints addObject:@(self.points.count - 1)];
+                [matchedPoints addObject:@{@"index": @(self.points.count - 1),
+                                           @"distance": @(pDist)}];
                 
                 if (matchedPoints.count == pointsToMatch.count) {
                     NSLog(@"Matched %@!", shape.name);
@@ -132,7 +135,7 @@
                 // through the rest of our points, to the target point.
                 CGFloat runLength = 0;
                 NSInteger ourPointIdx =
-                    [[matchedPoints lastObject] integerValue];
+                    [[matchedPoints lastObject][@"index"] integerValue];
                 int i;
                 CGPoint lastPointChecked =
                     [self.points[ourPointIdx] CGPointValue];
@@ -184,9 +187,18 @@
                     [self.pointsToMatch[shape.name] count]) {
                 if ([self.delegate respondsToSelector:@selector(shapePredictor:didMatchShape:withAccuracy:)]) {
                     // TODO: Determine accuracy
+                    CGFloat absDist = self.vertexCatchTolerance * self.initialSegmentLength;
+                    float distSum = 0.f;
+                    for (NSDictionary *matchedPoint in self.matchedPoints[shape.name]) {
+                        distSum += [[matchedPoint objectForKey:@"distance"] floatValue];
+                    }
+                        
+                    CGFloat maxDist = absDist * ([self.matchedPoints[shape.name] count] - 2);
+                    float accuracy = 1.f - distSum / maxDist;
+                    
                     [self.delegate shapePredictor:self
                                     didMatchShape:shape
-                                     withAccuracy:1.f];
+                                     withAccuracy:accuracy];
                 }
                 break;
             }
@@ -338,7 +350,6 @@
                     [path moveToPoint:[points[matchedPoints.count] CGPointValue]];
                     [path addLineToPoint:[points[matchedPoints.count + 1] CGPointValue]];
                     [paths addObject:path];
-                    continue;
                 }
             }
             

@@ -14,7 +14,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static CGFloat angleThreshold = 20.f;
+static CGFloat angleThreshold = 30.f;
 static CGFloat distanceThreshold = 25.f;
 
 @interface TLMLinearInterpView () <TLMShapePredictorDelegate>
@@ -173,7 +173,8 @@ static CGFloat distanceThreshold = 25.f;
          didMatchShape:(TLMShape *)shape
           withAccuracy:(float)accuracy
 {
-    self.statusLabel.text = shape.name;
+    self.statusLabel.text = [NSString stringWithFormat:@"%@ (%.02f%%)",
+                             shape.name, accuracy * 100];
 }
 
 - (void)shapePredictorDidFail:(TLMShapePredictor *)shapePredictor
@@ -215,13 +216,23 @@ static CGFloat distanceThreshold = 25.f;
 
 - (void)drawNextPossibleSegments
 {
-    [[UIColor colorWithRed:0 green:1 blue:0 alpha:0.5] setStroke];
     for (UIBezierPath *path in
          [self.predictor bezierPathsForNextPossibleSegments]) {
+        [[UIColor colorWithWhite:1 alpha:0.25] setFill];
+        CGFloat r = self.predictor.vertexCatchTolerance * self.predictor.initialSegmentLength;
+        CGRect catchRect = CGRectMake(path.currentPoint.x - r,
+                                      path.currentPoint.y - r,
+                                      r * 2, r * 2);
+        UIBezierPath *catchRadius =
+            [UIBezierPath bezierPathWithOvalInRect:catchRect];
+        [catchRadius fill];
+        
+        [[UIColor colorWithRed:0 green:1 blue:0 alpha:0.5] setStroke];
         path.lineWidth = 5.0;
         path.lineCapStyle = kCGLineCapRound;
         [path stroke];
     }
+    
 }
 
 - (void)drawUserCrayon

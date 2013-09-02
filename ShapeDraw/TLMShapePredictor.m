@@ -22,6 +22,7 @@
 @property (nonatomic, strong) NSMutableSet *potentialShapes;
 @property (nonatomic, strong) NSValue *stagedPoint;
 @property (nonatomic, strong) NSMutableDictionary *pointsToMatch;
+@property (nonatomic, strong) NSMutableDictionary *farthestPoints;
 @property (nonatomic, strong) NSMutableDictionary *matchedPoints;
 
 @end
@@ -258,52 +259,70 @@
 
 - (void)prepareToMatchPoints {
     self.pointsToMatch = [NSMutableDictionary dictionary];
+    self.farthestPoints = [NSMutableDictionary dictionary];
     
     for (TLMShape *shape in self.shapes) {
+        CGPoint farthest;
         NSArray *points =
             [shape pointsFromStartPoint:[self.points[0] CGPointValue]
                withInitialSegmentLength:self.initialSegmentLength
                        withInitialAngle:self.initialSegmentAngle
-                            withWinding:self.intendedConvexWinding];
+                            withWinding:self.intendedConvexWinding
+                          farthestPoint:&farthest];
         [self.pointsToMatch setObject:points forKey:shape.name];
+        [self.farthestPoints setObject:[NSValue valueWithCGPoint:farthest]
+                                forKey:shape.name];
     }
 }
 
 #pragma mark - Drawing Helpers
 
-- (NSArray *)bezierPathsForAllPotentialShapes
+- (NSArray *)bezierPathsForAllPotentialShapesInFrame:(CGRect)frame
 {
     if (self.initialSegmentLength == 0) return nil;
     
     NSMutableArray *paths = [NSMutableArray array];
     for (TLMShape *shape in [self.potentialShapes allObjects]) {
         if (self.intendedConvexWinding == kTLMShapeConvexWindingAmbiguous) {
+            CGPoint cwFarthest;
             UIBezierPath *cwPath =
                 [shape bezierPathFromStartPoint:[self startPoint]
                        withInitialSegmentLength:self.initialSegmentLength
                                withInitialAngle:self.initialSegmentAngle
-                                    withWinding:kTLMShapeConvexWindingClockwise];
+                                    withWinding:kTLMShapeConvexWindingClockwise
+                                  farthestPoint:&cwFarthest];
+            CGPoint ccwFarthest;
             UIBezierPath *ccwPath =
                 [shape bezierPathFromStartPoint:[self startPoint]
                        withInitialSegmentLength:self.initialSegmentLength
                                withInitialAngle:self.initialSegmentAngle
-                                    withWinding:kTLMShapeConvexWindingCounterclockwise];
-            [paths addObject:cwPath];
-            [paths addObject:ccwPath];
+                                    withWinding:kTLMShapeConvexWindingCounterclockwise
+                                  farthestPoint:&ccwFarthest];
+            if (CGRectContainsPoint(frame, cwFarthest)) {
+                [paths addObject:cwPath];
+            }
+            
+            if (CGRectContainsPoint(frame, ccwFarthest)) {
+                [paths addObject:ccwPath];
+            }
         } else {
             TLMShapeConvexWinding winding = self.intendedConvexWinding;
+            CGPoint farthest;
             UIBezierPath *path =
                 [shape bezierPathFromStartPoint:[self startPoint]
                        withInitialSegmentLength:self.initialSegmentLength
                                withInitialAngle:self.initialSegmentAngle
-                                    withWinding:winding];
-            [paths addObject:path];
+                                    withWinding:winding
+                                  farthestPoint:&farthest];
+            if (CGRectContainsPoint(frame, path.currentPoint)) {
+                [paths addObject:path];
+            }
         }
     }
     return paths;
 }
 
-- (NSArray *)bezierPathsForNextPossibleSegments
+- (NSArray *)bezierPathsForNextPossibleSegmentsInFrame:(CGRect)frame
 {
     if (self.initialSegmentLength == 0) return nil;
     
@@ -312,22 +331,28 @@
         if (self.intendedConvexWinding == kTLMShapeConvexWindingAmbiguous) {
             // TODO: This is probably brutal
             
+            CGPoint cwFarthest;
             NSArray *cwPoints =
                 [shape pointsFromStartPoint:[self startPoint]
                    withInitialSegmentLength:self.initialSegmentLength
                            withInitialAngle:self.initialSegmentAngle
-                                withWinding:kTLMShapeConvexWindingClockwise];
+                                withWinding:kTLMShapeConvexWindingClockwise
+                              farthestPoint:&cwFarthest];
+            CGPoint ccwFarthest;
             NSArray *ccwPoints =
                 [shape pointsFromStartPoint:[self startPoint]
                    withInitialSegmentLength:self.initialSegmentLength
                            withInitialAngle:self.initialSegmentAngle
-                                withWinding:kTLMShapeConvexWindingCounterclockwise];
+                                withWinding:kTLMShapeConvexWindingCounterclockwise
+                              farthestPoint:&ccwFarthest];
             
             NSMutableArray *matchedPoints =
                 [self.matchedPoints objectForKey:shape.name];
             
             for (NSArray *points in @[cwPoints, ccwPoints]) {
-                if (points.count > matchedPoints.count) {
+                CGPoint farthest = (points == cwPoints ? cwFarthest : ccwFarthest);
+                if (points.count > matchedPoints.count &&
+                        CGRectContainsPoint(frame, farthest)) {
                     UIBezierPath *path = [UIBezierPath bezierPath];
                     [path moveToPoint:[points[matchedPoints.count - 1] CGPointValue]];
                     [path addLineToPoint:[points[matchedPoints.count] CGPointValue]];
@@ -336,6 +361,11 @@
             }
         } else {
             NSArray *points = self.pointsToMatch[shape.name];
+            CGPoint farthest = [self.farthestPoints[shape.name] CGPointValue];
+            if (!CGRectContainsPoint(frame, farthest)) {
+                continue;
+            }
+            
             NSMutableArray *matchedPoints =
                 [self.matchedPoints objectForKey:shape.name];
             

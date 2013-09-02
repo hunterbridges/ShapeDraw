@@ -49,7 +49,7 @@ typedef NS_ENUM(NSInteger, TLMShapePredictorState) {
 
 #pragma mark - Drawing Helpers
 
-- (NSArray *)bezierPathsForAllPotentialShapes;
-- (NSArray *)bezierPathsForNextPossibleSegments;
+- (NSArray *)bezierPathsForAllPotentialShapesInFrame:(CGRect)frame;
+- (NSArray *)bezierPathsForNextPossibleSegmentsInFrame:(CGRect)frame;
 
 @end

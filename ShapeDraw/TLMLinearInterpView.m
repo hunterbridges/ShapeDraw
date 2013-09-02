@@ -80,6 +80,11 @@ static CGFloat distanceThreshold = 25.f;
                    withSegments:[TLMShapeSegment length:1.0 angle:90],
                                 [TLMShapeSegment length:sqrtf(2.0) angle:45],
                                 nil],
+        [TLMShape shapeWithName:@"Falcon Kick"
+                   withSegments:[TLMShapeSegment length:1.0 angle:120],
+                                [TLMShapeSegment length:0.8 angle:60],
+                                [TLMShapeSegment length:2.0 angle:90],
+                                 nil],
         ];
     
     self.predictor =
@@ -207,7 +212,7 @@ static CGFloat distanceThreshold = 25.f;
 {
     [[UIColor colorWithRed:0 green:1 blue:1 alpha:0.25] setStroke];
     for (UIBezierPath *path in
-         [self.predictor bezierPathsForAllPotentialShapes]) {
+         [self.predictor bezierPathsForAllPotentialShapesInFrame:self.bounds]) {
         path.lineWidth = 5.0;
         path.lineCapStyle = kCGLineCapRound;
         [path stroke];
@@ -217,7 +222,7 @@ static CGFloat distanceThreshold = 25.f;
 - (void)drawNextPossibleSegments
 {
     for (UIBezierPath *path in
-         [self.predictor bezierPathsForNextPossibleSegments]) {
+         [self.predictor bezierPathsForNextPossibleSegmentsInFrame:self.bounds]) {
         [[UIColor colorWithWhite:1 alpha:0.25] setFill];
         CGFloat r = self.predictor.vertexCatchTolerance * self.predictor.initialSegmentLength;
         CGRect catchRect = CGRectMake(path.currentPoint.x - r,
@@ -276,7 +281,7 @@ static CGFloat distanceThreshold = 25.f;
 
 - (void)drawRect:(CGRect)rect
 {
-    //[self drawPotentialShapes];
+    [self drawPotentialShapes];
     [self drawNextPossibleSegments];
     
     [self drawUserCrayon];

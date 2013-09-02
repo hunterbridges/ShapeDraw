@@ -71,13 +71,16 @@ static CGFloat angleWrap(CGFloat angle) {
 - (UIBezierPath *)bezierPathFromStartPoint:(CGPoint)startPoint
                   withInitialSegmentLength:(CGFloat)length
                           withInitialAngle:(CGFloat)angle
-                               withWinding:(TLMShapeConvexWinding)winding {
+                               withWinding:(TLMShapeConvexWinding)winding
+                             farthestPoint:(CGPoint *)farthestPoint
+{
     if (winding == kTLMShapeConvexWindingAmbiguous) return nil;
     
     NSArray *points = [self pointsFromStartPoint:startPoint
                         withInitialSegmentLength:length
                                 withInitialAngle:angle
-                                     withWinding:winding];
+                                     withWinding:winding
+                                   farthestPoint:farthestPoint];
     UIBezierPath *path = [UIBezierPath bezierPath];
     [path moveToPoint:startPoint];
     
@@ -93,7 +96,9 @@ static CGFloat angleWrap(CGFloat angle) {
 - (NSArray *)pointsFromStartPoint:(CGPoint)startPoint
          withInitialSegmentLength:(CGFloat)length
                  withInitialAngle:(CGFloat)angle
-                      withWinding:(TLMShapeConvexWinding)winding {
+                      withWinding:(TLMShapeConvexWinding)winding
+                    farthestPoint:(CGPoint *)farthestPoint
+{
     NSMutableArray *points = [NSMutableArray array];
     
     [points addObject:[NSValue valueWithCGPoint:startPoint]];
@@ -105,20 +110,33 @@ static CGFloat angleWrap(CGFloat angle) {
     CGFloat prevAngle = angle;
     CGFloat prevAngleRads = angleRads;
     CGPoint prevPoint = secondPoint;
+    
+    CGPoint farPoint = CGPointZero;
+    CGFloat farPointDist = CGFLOAT_MIN;
     for (TLMShapeSegment *segment in self.segments) {
         CGFloat nextAngleDelta = segment.angle * winding;
         CGFloat nextAngle = angleWrap(prevAngle + 180 + nextAngleDelta);
         CGFloat nextAngleRads = nextAngle * M_PI / 180.f;
+        CGFloat nextLength = segment.length * length;
         
         CGPoint nextPoint =
             CGPointByLookingFrom(prevPoint,
                                  nextAngleRads,
-                                 segment.length * length);
+                                 nextLength);
+        CGFloat distance = CGPointDistance(startPoint, nextPoint);
+        if (distance > farPointDist) {
+            farPoint = nextPoint;
+            farPointDist = distance;
+        }
         [points addObject:[NSValue valueWithCGPoint:nextPoint]];
         
         prevAngle = nextAngle;
         prevAngleRads = nextAngleRads;
         prevPoint = nextPoint;
+    }
+    
+    if (farthestPoint) {
+        *farthestPoint = farPoint;
     }
     
     return points;

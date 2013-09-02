@@ -39,10 +39,12 @@ typedef NS_ENUM(NSInteger, TLMShapeConvexWinding) {
 - (UIBezierPath *)bezierPathFromStartPoint:(CGPoint)startPoint
                   withInitialSegmentLength:(CGFloat)length
                           withInitialAngle:(CGFloat)angle
-                               withWinding:(TLMShapeConvexWinding)winding;
+                               withWinding:(TLMShapeConvexWinding)winding
+                             farthestPoint:(CGPoint *)farthestPoint;
 - (NSArray *)pointsFromStartPoint:(CGPoint)startPoint
          withInitialSegmentLength:(CGFloat)length
                  withInitialAngle:(CGFloat)angle
-                      withWinding:(TLMShapeConvexWinding)winding;
-    
+                      withWinding:(TLMShapeConvexWinding)winding
+                    farthestPoint:(CGPoint *)farthestPoint;
+
 @end
